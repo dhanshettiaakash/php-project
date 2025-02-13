@@ -19,7 +19,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                    sh "docker build --no-cache -t ${IMAGE_NAME}:${IMAGE_TAG} ."
                     sh 'docker images'
                 }
             }
@@ -30,7 +30,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-pwd', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
                     script {
                         sh '''
-                        echo "$PASS" | docker login -u "$USER" --password-stdin
+                        echo "$PASS" | docker login -u "$USER" --password-stdin || exit 1
                         docker push ${IMAGE_NAME}:${IMAGE_TAG}
                         '''
                     }
@@ -51,6 +51,18 @@ pipeline {
                         """
                     }
                 }
+            }
+        }
+    }
+    post {
+        failure {
+            script {
+                echo "❌ Build Failed! Check logs for details."
+            }
+        }
+        success {
+            script {
+                echo "✅ Build & Deployment Successful!"
             }
         }
     }
