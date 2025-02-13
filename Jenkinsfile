@@ -10,7 +10,7 @@ pipeline {
         stage('Git Clone') {
             steps {
                 script {
-                    sh 'rm -rf php-project || true'
+                    sh 'rm -rf php-project || true' // Ensure a clean workspace
                 }
                 git url: 'https://github.com/dhanshettiaakash/php-project/', branch: "master"
             }
@@ -28,8 +28,12 @@ pipeline {
         stage('Docker Login & Push') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-pwd', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
-                    sh "echo $PASS | docker login -u $USER --password-stdin"
-                    sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                    script {
+                        sh '''
+                        echo "$PASS" | docker login -u "$USER" --password-stdin
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                        '''
+                    }
                 }
             }
         }
@@ -39,11 +43,11 @@ pipeline {
                 script {
                     sshagent(['sshkeypair']) {
                         sh """
-                            ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} '
-                            docker ps -q --filter "name=${CONTAINER_NAME}" | grep -q . && docker rm -f ${CONTAINER_NAME} || true
-                            docker pull ${IMAGE_NAME}:${IMAGE_TAG}
-                            docker run -itd --name ${CONTAINER_NAME} -p 8083:80 ${IMAGE_NAME}:${IMAGE_TAG}
-                            '
+                        ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} '
+                        docker ps -q --filter "name=${CONTAINER_NAME}" | grep -q . && docker rm -f ${CONTAINER_NAME} || true
+                        docker pull ${IMAGE_NAME}:${IMAGE_TAG}
+                        docker run -itd --name ${CONTAINER_NAME} -p 8083:80 ${IMAGE_NAME}:${IMAGE_TAG}
+                        '
                         """
                     }
                 }
