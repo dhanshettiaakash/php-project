@@ -1,68 +1,41 @@
 pipeline {
     agent any
-    environment {
-        IMAGE_NAME = 'aakki2503/akshatnewimg6july'
-        IMAGE_TAG = 'v1'
-        CONTAINER_NAME = 'My-first-containe2211'
-        SERVER_IP = '172.31.27.38'
-    }
-    stages {
-        stage('Git Clone') {
-            steps {
-                script {
-                    sh 'rm -rf php-project || true' // Ensure a clean workspace
-                }
-                git url: 'https://github.com/dhanshettiaakash/php-project/', branch: "master"
+    stages{
+        stage('git cloned'){
+            steps{
+                git url:'https://github.com/dhanshettiaakash/php-project/', branch: "master"
+              
             }
         }
-
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    sh "docker build --no-cache -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+        stage('Build docker image'){
+            steps{
+                script{
+                    sh 'docker build -t dhanshettiaakash/akshatnewimg6july:v1 .'
                     sh 'docker images'
                 }
             }
         }
-
-        stage('Docker Login & Push') {
+          stage('Docker login') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-pwd', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
-                    script {
-                        sh '''
-                        echo "$PASS" | docker login -u "$USER" --password-stdin || exit 1
-                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                        '''
-                    }
+                    sh "echo $PASS | docker login -u $USER --password-stdin"
+                    sh 'docker push dhanshettiaakash/akshatnewimg6july:v1'
                 }
             }
         }
-
-        stage('Deploy') {
+        
+     stage('Deploy') {
             steps {
-                script {
+               script {
+                   def dockerrm = 'sudo docker rm -f My-first-containe2211 || true'
+                    def dockerCmd = 'sudo docker run -itd --name My-first-containe2211 -p 8083:80 dhanshettiaakash/akshatnewimg6july:v1'
                     sshagent(['sshkeypair']) {
-                        sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@${SERVER_IP} '
-                        docker ps -q --filter "name=${CONTAINER_NAME}" | grep -q . && docker rm -f ${CONTAINER_NAME} || true
-                        docker pull ${IMAGE_NAME}:${IMAGE_TAG}
-                        docker run -itd --name ${CONTAINER_NAME} -p 8083:80 ${IMAGE_NAME}:${IMAGE_TAG}
-                        '
-                        """
+                        //chnage the private ip in below code
+                        // sh "docker run -itd --name My-first-containe2111 -p 8083:80 akshu20791/2febimg:v1"
+                         sh "ssh -o StrictHostKeyChecking=no ubuntu@172.31.2.113 ${dockerrm}"
+                         sh "ssh -o StrictHostKeyChecking=no ubuntu@172.31.2.113 ${dockerCmd}"
                     }
                 }
-            }
-        }
-    }
-    post {
-        failure {
-            script {
-                echo "❌ Build Failed! Check logs for details."
-            }
-        }
-        success {
-            script {
-                echo "✅ Build & Deployment Successful!"
             }
         }
     }
